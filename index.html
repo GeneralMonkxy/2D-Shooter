@@ -126,6 +126,13 @@
             color: var(--accent-color);
         }
         
+        #back-to-menu-btn {
+            position: absolute;
+            top: clamp(15px, 4vh, 30px);
+            left: clamp(15px, 4vw, 30px);
+            z-index: 10; /* Ensure it's above other elements */
+        }
+
         .creator-credit {
             font-size: clamp(0.8rem, 2vw, 1rem);
             color: var(--accent-color);
@@ -216,6 +223,7 @@
     </div>
 
     <div id="customization-screen" class="screen">
+        <button id="back-to-menu-btn" class="icon-button">⬅</button>
         <div class="customization-container">
             <div class="player-panel">
                 <h2>Player 1</h2>
@@ -404,6 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('start-game-btn').addEventListener('click', startGame);
     document.getElementById('play-again-btn').addEventListener('click', startGame);
     document.getElementById('main-menu-btn').addEventListener('click', () => { if (animationFrameId) cancelAnimationFrame(animationFrameId); gameActive = false; hideModal('end-game-screen'); showScreen('main-menu'); });
+    document.getElementById('back-to-menu-btn').addEventListener('click', () => showScreen('main-menu'));
     document.getElementById('pause-btn').addEventListener('click', () => { isGamePaused = !isGamePaused; document.getElementById('pause-btn').textContent = isGamePaused ? '▶' : '❚❚'; document.getElementById('home-btn').disabled = document.getElementById('help-btn').disabled = document.getElementById('settings-btn-game').disabled = !isGamePaused; });
     document.getElementById('home-btn').addEventListener('click', () => { if (isGamePaused) { gameActive = false; cancelAnimationFrame(animationFrameId); showScreen('main-menu'); } });
     document.getElementById('help-btn').addEventListener('click', () => { isGamePaused = true; document.getElementById('pause-btn').textContent = '▶'; document.getElementById('home-btn').disabled = false; document.getElementById('settings-btn-game').disabled = false; showModal('how-to-play-modal'); });
@@ -994,5 +1003,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
+
 
 
