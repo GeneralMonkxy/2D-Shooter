@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>2D Shooter</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,6 +28,9 @@
             align-items: center;
             height: 100vh;
             overflow: hidden;
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10+ */
+            user-select: none;
         }
 
         .screen {
@@ -202,7 +205,82 @@
         #winner-text { font-size: clamp(2rem, 8vw, 3rem); font-weight: bold; text-align: center; }
         .stats-container { padding: clamp(15px, 4vw, 20px) clamp(20px, 6vw, 40px); }
         .end-game-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; justify-content: center; }
+
+        /* Settings Modal UI */
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+            gap: 15px;
+        }
+        .setting-row label {
+            flex-shrink: 0;
+        }
+        .setting-row select {
+            width: auto;
+            max-width: 150px;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid var(--light-bg);
+            margin: 20px 0;
+        }
         
+        /* Touch Controls Styling */
+        .touch-controls {
+            display: none;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Pass clicks through the container */
+        }
+        body.touch-controls-active .touch-controls {
+            display: block;
+        }
+
+        .joystick, .fire-button {
+            position: absolute;
+            opacity: 0.6;
+            pointer-events: auto; /* Enable clicks on controls */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .joystick { bottom: 5%; }
+        .joystick.pos-left { left: 5%; }
+        .joystick.pos-right { right: 5%; }
+        
+        .joystick-base {
+            width: clamp(100px, 25vw, 120px);
+            height: clamp(100px, 25vw, 120px);
+            background-color: rgba(200, 200, 200, 0.5);
+            border-radius: 50%;
+            position: relative;
+        }
+        .joystick-nub {
+            width: 50%;
+            height: 50%;
+            background-color: #333;
+            border-radius: 50%;
+            position: absolute;
+            top: 25%;
+            left: 25%;
+            transition: transform 0.1s;
+        }
+
+        .fire-button {
+            width: clamp(70px, 18vw, 80px);
+            height: clamp(70px, 18vw, 80px);
+            border-radius: 50%;
+            position: relative;
+        }
+
     </style>
 </head>
 <body>
@@ -300,6 +378,20 @@
             </div>
         </div>
         <canvas id="gameCanvas"></canvas>
+        <div class="touch-controls">
+            <div id="p1-controls" class="joystick">
+                <div class="fire-button" id="p1-fire"></div>
+                <div class="joystick-base">
+                    <div id="p1-nub" class="joystick-nub"></div>
+                </div>
+            </div>
+             <div id="p2-controls" class="joystick">
+                <div class="fire-button" id="p2-fire"></div>
+                <div class="joystick-base">
+                    <div id="p2-nub" class="joystick-nub"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="end-game-screen" class="screen modal">
@@ -324,9 +416,11 @@
      <div id="settings-modal" class="screen modal">
         <div class="modal-content">
             <h2>Settings</h2>
-            <div style="margin: 20px 0;">
-                <label for="music-select" class="selector-label">Background Music</label>
-                <select id="music-select" class="menu-button" style="width: 100%;">
+            <hr>
+            <h3>Audio</h3>
+            <div class="setting-row">
+                <label for="music-select">Background Music</label>
+                <select id="music-select" class="menu-button">
                     <option value="0">Retro Vibe</option>
                     <option value="1">Ambient Chill</option>
                     <option value="2">Action Pulse</option>
@@ -335,7 +429,27 @@
                     <option value="5">None</option>
                 </select>
             </div>
-            <button id="mute-btn" class="menu-button" style="width: 100%;">Mute</button>
+            <div class="setting-row">
+                <label>Sound</label>
+                <button id="mute-btn" class="menu-button" style="width: 150px;">Mute</button>
+            </div>
+            <hr>
+            <h3>Controls</h3>
+             <div class="setting-row">
+                <label for="touch-controls-select">On-Screen Controls</label>
+                <select id="touch-controls-select" class="menu-button">
+                    <option value="auto">Auto-Detect</option>
+                    <option value="on">On</option>
+                    <option value="off">Off</option>
+                </select>
+            </div>
+             <div class="setting-row" id="touch-position-row">
+                <label for="touch-position-select">1P Control Position</label>
+                <select id="touch-position-select" class="menu-button">
+                    <option value="left">Left</option>
+                    <option value="right">Right</option>
+                </select>
+            </div>
             <button class="modal-close-btn menu-button" style="margin-top: 20px; background-color: #444;">Close</button>
         </div>
     </div>
@@ -352,7 +466,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let gameActive = false,
         isGamePaused = true,
         isVsCPU = false,
-        gameMode = '120s';
+        gameMode = '120s',
+        touchControlsSetting = 'auto',
+        touchControlPosition = 'left';
     let players = [],
         projectiles = [],
         obstacles = [],
@@ -426,6 +542,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('music-select').addEventListener('change', (e) => {
         playMusic(parseInt(e.target.value));
+    });
+     document.getElementById('touch-controls-select').addEventListener('change', (e) => {
+        touchControlsSetting = e.target.value;
+        updateTouchControlsVisibility();
+    });
+     document.getElementById('touch-position-select').addEventListener('change', (e) => {
+        touchControlPosition = e.target.value;
+        updateTouchControlsVisibility();
     });
     window.addEventListener('resize', resizeGame);
 
@@ -515,6 +639,8 @@ document.addEventListener('DOMContentLoaded', () => {
         resizeGame();
         resetGameTimer();
         updateScoreboard();
+        updateTouchControlsVisibility();
+        setupTouchControls();
 
         isGamePaused = true;
         document.getElementById('pause-btn').textContent = '▶';
@@ -995,14 +1121,165 @@ document.addEventListener('DOMContentLoaded', () => {
             if (p.playerNumber === 2 && !p.isCPU && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'k', 'l'].includes(e.key)) p.keys[e.key] = false;
         });
     });
+    
+    // --- Touch & Mouse Controls ---
+    const isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    function updateTouchControlsVisibility() {
+        const p1Controls = document.getElementById('p1-controls');
+        const p2Controls = document.getElementById('p2-controls');
+        const touchPositionRow = document.getElementById('touch-position-row');
+        
+        const showControls = touchControlsSetting === 'on' || (touchControlsSetting === 'auto' && isTouchDevice());
+        
+        document.body.classList.toggle('touch-controls-active', showControls);
+        touchPositionRow.style.display = showControls ? 'flex' : 'none';
+
+        if(showControls) {
+            p1Controls.classList.remove('pos-left', 'pos-right');
+            p2Controls.classList.remove('pos-left', 'pos-right');
+
+            if (isVsCPU) {
+                 p1Controls.style.display = 'flex';
+                 p2Controls.style.display = 'none';
+                 p1Controls.classList.add(touchControlPosition === 'left' ? 'pos-left' : 'pos-right');
+            } else {
+                 p1Controls.style.display = 'flex';
+                 p2Controls.style.display = 'flex';
+                 p1Controls.classList.add('pos-left');
+                 p2Controls.classList.add('pos-right');
+            }
+        }
+    }
+    
+    function setupTouchControls() {
+        if (players.length === 0) return;
+        
+        document.getElementById('p1-nub').style.backgroundColor = players[0].color;
+        document.getElementById('p1-fire').style.backgroundColor = players[0].color;
+
+        if (players.length > 1) {
+            document.getElementById('p2-nub').style.backgroundColor = players[1].color;
+            document.getElementById('p2-fire').style.backgroundColor = players[1].color;
+        }
+        
+        const fireButtons = [
+            { el: document.getElementById('p1-fire'), player: players[0] },
+            { el: document.getElementById('p2-fire'), player: players[1] }
+        ];
+
+        fireButtons.forEach(btn => {
+            btn.el.replaceWith(btn.el.cloneNode(true));
+            const newBtn = document.getElementById(btn.el.id);
+            const fireAction = (e) => {
+                e.preventDefault(); 
+                if (btn.player && !btn.player.isCPU) btn.player.shoot();
+            };
+            newBtn.addEventListener('touchstart', fireAction, { passive: false });
+            newBtn.addEventListener('mousedown', fireAction);
+        });
+
+        const joysticks = [
+            { el: document.getElementById('p1-controls'), playerIndex: 0, keys: ['w', 's', 'a', 'd'] },
+            { el: document.getElementById('p2-controls'), playerIndex: 1, keys: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'] }
+        ];
+
+        joysticks.forEach(joy => {
+            const base = joy.el.querySelector('.joystick-base');
+            const nub = joy.el.querySelector('.joystick-nub');
+            let activeTouchId = null;
+            let isMouseDown = false;
+
+            const startMove = (e) => {
+                e.preventDefault();
+                isMouseDown = true;
+            };
+
+            const move = (clientX, clientY) => {
+                 const player = players[joy.playerIndex];
+                if (!player || player.isCPU) return;
+
+                const baseRect = base.getBoundingClientRect();
+                const nubRadius = nub.offsetWidth / 2;
+                const baseRadius = base.offsetWidth / 2;
+                const maxMove = baseRadius - nubRadius;
+
+                const dx = clientX - (baseRect.left + baseRadius);
+                const dy = clientY - (baseRect.top + baseRadius);
+                const dist = Math.hypot(dx, dy);
+
+                let moveX = dx;
+                let moveY = dy;
+
+                if (dist > maxMove) {
+                    moveX = (dx / dist) * maxMove;
+                    moveY = (dy / dist) * maxMove;
+                }
+                nub.style.transform = `translate(${moveX}px, ${moveY}px)`;
+                
+                const deadzone = 10;
+                player.keys[joy.keys[0]] = dy < -deadzone; // Up
+                player.keys[joy.keys[1]] = dy > deadzone;  // Down
+                player.keys[joy.keys[2]] = dx < -deadzone; // Left
+                player.keys[joy.keys[3]] = dx > deadzone;  // Right
+            };
+
+            const endMove = () => {
+                isMouseDown = false;
+                activeTouchId = null;
+                nub.style.transform = `translate(0px, 0px)`;
+                const player = players[joy.playerIndex];
+                if (player) {
+                    joy.keys.forEach(k => player.keys[k] = false);
+                }
+            };
+            
+            // Mouse Events
+            base.addEventListener('mousedown', startMove);
+            window.addEventListener('mousemove', (e) => {
+                if(isMouseDown) move(e.clientX, e.clientY);
+            });
+            window.addEventListener('mouseup', () => {
+                if(isMouseDown) endMove();
+            });
+
+            // Touch Events
+            base.addEventListener('touchstart', (e) => {
+                if (activeTouchId === null) {
+                    activeTouchId = e.changedTouches[0].identifier;
+                }
+            }, { passive: false });
+
+            base.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === activeTouchId) {
+                       move(touch.clientX, touch.clientY);
+                    }
+                }
+            }, { passive: false });
+
+            base.addEventListener('touchend', (e) => {
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === activeTouchId) {
+                       endMove();
+                    }
+                }
+            });
+            base.addEventListener('touchcancel', endMove);
+        });
+    }
+
 
     // --- Initial Load ---
     setupMusic();
     showScreen('main-menu');
+    updateTouchControlsVisibility();
 });
 </script>
 </body>
 </html>
+
 
 
 
